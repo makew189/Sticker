@@ -1,0 +1,83 @@
+name: Build Stiker GIF APK
+
+on:
+  push:
+    paths:
+      - 'stiker-gif-app.zip'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Extract project
+        run: unzip -q stiker-gif-app.zip -d .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install project dependencies
+        working-directory: stiker-gif-app
+        run: npm install
+
+      - name: Create Android project if missing
+        working-directory: stiker-gif-app
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+
+      - name: Apply Android configuration
+        working-directory: stiker-gif-app
+        run: node scripts/patch-android.mjs
+
+      - name: Generate Android assets
+        working-directory: stiker-gif-app
+        run: npx --yes @capacitor/assets generate --android
+
+      - name: Sync Capacitor
+        working-directory: stiker-gif-app
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: stiker-gif-app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stiker-GIF-APK
+          path: stiker-gif-app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
