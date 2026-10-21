@@ -37,13 +37,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-     - name: Set up Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        env:
-          SKIP_SDKMANAGER_UPDATE: "true"
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
 
       - name: Install Android SDK packages
         run: |
